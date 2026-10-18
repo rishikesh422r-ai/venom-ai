@@ -13,7 +13,7 @@ exports.handler = async (event) => {
       : [];
 
     const valid = messages.length > 0 &&
-      messages.every(m =>
+      messages.every((m) =>
         ["user", "assistant"].includes(m.role) &&
         typeof m.content === "string" &&
         m.content.length < 8000
@@ -26,10 +26,12 @@ exports.handler = async (event) => {
       };
     }
 
-    if (!process.env.GROQ_API_KEY) {
+    const apiKey = process.env.GROQ_API_KEY;
+
+    if (!apiKey) {
       return {
         statusCode: 500,
-        body: JSON.stringify({ error: "GROQ_API_KEY is not configured" })
+        body: JSON.stringify({ error: "GROQ_API_KEY is missing" })
       };
     }
 
@@ -39,13 +41,12 @@ exports.handler = async (event) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
+          "Authorization": `Bearer ${apiKey}`
         },
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
           messages,
-          max_tokens: 600,
-          temperature: 0.7
+          max_tokens: 600
         })
       }
     );
@@ -53,30 +54,19 @@ exports.handler = async (event) => {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("Groq API error:", response.status, data);
+      console.error("Groq error:", response.status, data);
       return {
         statusCode: 502,
-        body: JSON.stringify({
-          error: "AI service request failed"
-        })
-      };
-    }
-
-    const reply = data.choices?.[0]?.message?.content;
-
-    if (!reply) {
-      return {
-        statusCode: 502,
-        body: JSON.stringify({ error: "No AI response received" })
+        body: JSON.stringify({ error: "AI service request failed" })
       };
     }
 
     return {
       statusCode: 200,
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ reply })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reply: data.choices?.[0]?.message?.content || ""
+      })
     };
   } catch (error) {
     console.error("Chat function error:", error);
