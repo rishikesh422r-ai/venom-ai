@@ -1,25 +1,88 @@
 exports.handler = async (event) => {
-  if (event.httpMethod !== "POST") return { statusCode: 405, body: "Method not allowed" };
+  if (event.httpMethod !== "POST") {
+    return {
+      statusCode: 405,
+      body: JSON.stringify({ error: "Method not allowed" })
+    };
+  }
+
   try {
     const body = JSON.parse(event.body || "{}");
-    const messages = Array.isArray(body.messages) ? body.messages.slice(-20) : [];
-    const ok = messages.length > 0 && messages.every(m =>
-      (m.role === "user" || m.role === "assistant") && typeof m.content === "string" && m.content.length < 8000);
-    if (!ok) return { statusCode: 400, body: JSON.stringify({ error: "Bad request" }) };
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
+    const messages = Array.isArray(body.messages)
+      ? body.messages.slice(-20)
+      : [];
+
+    const valid = messages.length > 0 &&
+      messages.every(m =>
+        ["user", "assistant"].includes(m.role) &&
+        typeof m.content === "string" &&
+        m.content.length < 8000
+      );
+
+    if (!valid) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Invalid messages" })
+      };
+    }
+
+    if (!process.env.GROQ_API_KEY) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: "GROQ_API_KEY is not configured" })
+      };
+    }
+
+    const response = await fetch(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages,
+          max_tokens: 600,
+          temperature: 0.7
+        })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Groq API error:", response.status, data);
+      return {
+        statusCode: 502,
+        body: JSON.stringify({
+          error: "AI service request failed"
+        })
+      };
+    }
+
+    const reply = data.choices?.[0]?.message?.content;
+
+    if (!reply) {
+      return {
+        statusCode: 502,
+        body: JSON.stringify({ error: "No AI response received" })
+      };
+    }
+
+    return {
+      statusCode: 200,
       headers: {
-        "content-type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01"
+        "Content-Type": "application/json"
       },
-      body: JSON.stringify({ model: "claude-sonnet-5-5", max_tokens: 600, messages })
-    });
-    const data = await r.json();
-    const text = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("");
-    if (!r.ok || !text) return { statusCode: 502, body: JSON.stringify({ error: "Upstream error" }) };
-    return { statusCode: 200, headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) };
-  } catch (e) {
-    return { statusCode: 500, body: JSON.stringify({ error: "Server error" }) };
+      body: JSON.stringify({ reply })
+    };
+  } catch (error) {
+    console.error("Chat function error:", error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "Internal server error" })
+    };
   }
 };
