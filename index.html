@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Venom – Your AI Assistant</title>
+<meta name="description" content="Venom, a friendly AI character who chats, talks, plans your timetable, coaches your workouts and helps with your work.">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{--bg:#f2f2f4;--surface:#fff;--text:#16161a;--muted:#6c6c78;--accent:#111;--accent-text:#fff;--hi:#2f8f4e;--border:#d8d8de;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#08080a;--surface:#141417;--text:#ececf1;--muted:#8d8d99;--accent:#ececf1;--accent-text:#08080a;--hi:#5bd17f;--border:#2a2a31;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#08080a;--surface:#141417;--text:#ececf1;--muted:#8d8d99;--accent:#ececf1;--accent-text:#08080a;--hi:#5bd17f;--border:#2a2a31;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border)}
+.av{width:42px;height:42px;border-radius:50%;background:#000;color:#fff;display:grid;place-items:center;font-weight:800;font-size:20px;border:2px solid var(--hi)}
+header h1{font-size:18px;margin:0;letter-spacing:1px}
+header p{margin:0;font-size:12px;color:var(--muted)}
+nav{display:flex;background:var(--surface);border-bottom:1px solid var(--border)}
+nav button{flex:1;padding:12px;font:inherit;font-weight:600;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer}
+nav button.on{color:var(--text);border-bottom-color:var(--hi)}
+section{flex:1;min-height:0;display:none;flex-direction:column}
+section.on{display:flex}
+#log,#tt,#ideas{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:86%;padding:10px 14px;border-radius:16px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.bot{background:var(--surface);border:1px solid var(--border);align-self:flex-start;border-bottom-left-radius:4px}
+.me{background:var(--accent);color:var(--accent-text);align-self:flex-end;border-bottom-right-radius:4px}
+.note{color:var(--muted);font-size:13px;text-align:center}
+#hero{display:flex;align-items:center;justify-content:center;gap:14px;padding:10px 12px 0}
+#face{width:130px;height:138px;flex:none}
+#mouth{transform-box:fill-box;transform-origin:50% 0}
+#face.talk #mouth{animation:yap .22s infinite alternate}
+#face.think .eye{animation:blink .8s infinite}
+@keyframes yap{from{transform:scaleY(.6)}to{transform:scaleY(1.15)}}
+@keyframes blink{50%{opacity:.25}}
+#spk{font:inherit;font-size:14px;padding:8px 14px;border-radius:16px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer}
+#ctl{display:flex;flex-direction:column;gap:6px}
+#ctl button{font:inherit;font-size:13px;padding:7px 12px;border-radius:14px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;text-align:left}
+#face{transition:filter .5s}
+body.talk #bar,body.talk .chips{display:none}
+body.talk #face{width:170px;height:180px}
+body.talk #hero{flex-direction:column}
+body.talk #log{max-height:28vh}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:8px 12px 0}
+.chips button{white-space:nowrap;font:inherit;font-size:13px;padding:6px 12px;border-radius:14px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer}
+#bar{display:flex;gap:8px;padding:10px 12px}
+input,select{font:inherit;font-size:16px;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);min-width:0}
+#box{flex:1;border-radius:20px}
+.btn{font:inherit;font-weight:600;border:0;border-radius:20px;padding:10px 18px;background:var(--accent);color:var(--accent-text);cursor:pointer}
+.btn:disabled{opacity:.5}
+form-row,.row{display:flex;gap:8px;flex-wrap:wrap}
+.add{padding:12px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px}
+.day{font-weight:700;color:var(--hi);margin-top:6px}
+.item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:12px}
+.item .t{color:var(--muted);font-size:13px;min-width:52px}
+.item .x{flex:1;overflow-wrap:anywhere}
+.item.done .x{text-decoration:line-through;color:var(--muted)}
+.item .del{background:none;border:0;color:var(--muted);font-size:20px;cursor:pointer}
+</style>
+</head>
+<body>
+<header>
+  <div class="av">V</div>
+  <div><h1 id="ttl">VENOM</h1><p>Your dark, loyal, very hungry assistant</p></div>
+</header>
+<nav>
+  <button id="n1" class="on">Chat</button>
+  <button id="n2">Timetable</button>
+  <button id="n3">Ideas</button>
+</nav>
+
+<section id="s1" class="on">
+  <div id="hero">
+    <svg id="face" viewBox="0 0 160 170" xmlns="http://www.w3.org/2000/svg" aria-label="Venom character">
+      <defs>
+        <radialGradient id="bd" cx="38%" cy="28%" r="85%"><stop offset="0" stop-color="#454b55"/><stop offset=".4" stop-color="#121317"/><stop offset="1" stop-color="#000"/></radialGradient>
+        <radialGradient id="ey" cx="50%" cy="50%" r="60%"><stop offset="0" stop-color="#f4fff7"/><stop offset=".55" stop-color="#9af0b4"/><stop offset="1" stop-color="#3fbf68"/></radialGradient>
+        <linearGradient id="tg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0566b"/><stop offset="1" stop-color="#7a1626"/></linearGradient>
+        <filter id="gl" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
+      </defs>
+      <path d="M24 74C4 64 0 40 14 20C12 42 26 52 38 56Z" fill="#050507" stroke="#2c3a31" stroke-width="1.5"/>
+      <path d="M136 74C156 64 160 40 146 20C148 42 134 52 122 56Z" fill="#050507" stroke="#2c3a31" stroke-width="1.5"/>
+      <path d="M80 8C118 8 146 30 148 70C150 108 128 136 112 146C100 154 60 154 48 146C32 136 10 108 12 70C14 30 42 8 80 8Z" fill="url(#bd)" stroke="#2c3a31" stroke-width="2"/>
+      <path d="M40 24C34 40 36 52 44 60M120 24C126 40 124 52 116 60M80 12C78 26 82 34 80 44" stroke="#5bd17f" stroke-width="1.5" fill="none" opacity=".35"/>
+      <ellipse cx="54" cy="26" rx="28" ry="9" fill="#fff" opacity=".2" transform="rotate(-22 54 26)"/>
+      <ellipse cx="108" cy="34" rx="12" ry="4" fill="#fff" opacity=".12" transform="rotate(25 108 34)"/>
+      <path d="M20 60C40 38 68 42 76 62M140 60C120 38 92 42 84 62" stroke="#1d2127" stroke-width="7" stroke-linecap="round" fill="none"/>
+      <path d="M24 56C42 40 66 44 72 58M136 56C118 40 94 44 88 58" stroke="#fff" stroke-width="1.5" fill="none" opacity=".25"/>
+      <ellipse cx="34" cy="96" rx="22" ry="16" fill="#000" opacity=".35"/><ellipse cx="126" cy="96" rx="22" ry="16" fill="#000" opacity=".35"/>
+      <path d="M72 88Q76 96 80 90Q84 96 88 88" stroke="#000" stroke-width="2.5" fill="none"/>
+      <path d="M14 80C20 110 40 134 52 144M146 80C140 110 120 134 108 144" stroke="#fff" stroke-width="2" fill="none" opacity=".15"/>
+      <g class="eye"><path d="M24 66C40 46 66 50 72 66C62 76 40 80 24 66Z" fill="#5bd17f" opacity=".7" filter="url(#gl)"/><path d="M26 66C40 49 64 53 70 66C60 74 40 78 26 66Z" fill="url(#ey)"/><ellipse cx="48" cy="64" rx="3.5" ry="6" fill="#06210f" opacity=".65"/><ellipse cx="42" cy="61" rx="3" ry="1.6" fill="#fff" opacity=".8"/></g>
+      <g class="eye"><path d="M136 66C120 46 94 50 88 66C98 76 120 80 136 66Z" fill="#5bd17f" opacity=".7" filter="url(#gl)"/><path d="M134 66C120 49 96 53 90 66C100 74 120 78 134 66Z" fill="url(#ey)"/><ellipse cx="112" cy="64" rx="3.5" ry="6" fill="#06210f" opacity=".65"/><ellipse cx="106" cy="61" rx="3" ry="1.6" fill="#fff" opacity=".8"/></g>
+      <g id="mouth">
+        <path d="M28 104C50 98 110 98 132 104C130 132 106 152 80 152C54 152 30 132 28 104Z" fill="#14040a"/>
+        <ellipse cx="80" cy="138" rx="22" ry="12" fill="url(#tg)"/>
+        <path d="M50 146L56 133L62 148L70 135L78 150L86 135L94 148L102 133L108 146Z" fill="#e8e8ec"/>
+        <path d="M28 104L38 124L46 107L54 128L62 109L70 130L78 111L86 130L94 109L102 128L110 107L118 124L132 104Z" fill="#f2f2f5"/>
+      </g>
+      <path d="M62 150C60 162 66 168 68 156Z" fill="#050507"/>
+      <path d="M96 148C94 158 99 163 101 153Z" fill="#050507"/>
+    </svg>
+    <div id="ctl">
+      <button id="spk">🔇 Voice off</button>
+      <button id="look">🎨 Look: Toxic</button>
+      <button id="mode">🤝 Mode: Friend</button>
+      <button id="talk">🎙 Talk (no typing)</button>
+    </div>
+  </div>
+  <div id="log"></div>
+  <div class="chips">
+    <button data-q="Plan my day using my timetable.">Plan my day</button>
+    <button data-q="What is my most important task this week?">Top priority</button>
+    <button data-q="Help me finish my work faster. Ask what I am working on.">Work help</button>
+    <button data-q="Give me a quick tip to stay focused.">Focus tip</button>
+    <button data-q="Make me a simple weekly workout plan. Ask my goal first.">Workout plan</button>
+    <button data-q="Let us talk about my saved ideas. Which one is best and what is the next step?">My ideas</button>
+  </div>
+  <div id="bar">
+    <input id="box" placeholder="Talk to Venom…" autocomplete="off">
+    <button class="btn" id="send">Send</button>
+  </div>
+</section>
+
+<section id="s2">
+  <div class="add">
+    <div class="row">
+      <select id="day"><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option></select>
+      <input id="time" type="time" value="09:00">
+    </div>
+    <div class="row">
+      <input id="task" placeholder="Task or class…" style="flex:1">
+      <button class="btn" id="add">Add</button>
+    </div>
+  </div>
+  <div id="tt"></div>
+</section>
+
+<section id="s3">
+  <div class="add"><div class="row">
+    <input id="idea" placeholder="Write an idea…" style="flex:1">
+    <button class="btn" id="addidea">Save</button>
+  </div></div>
+  <div id="ideas"></div>
+</section>
+
+<script>
+var PERSONA = "You are Venom, a fictional dark, gravelly, hungry alien symbiote character, inspired by the classic comic-book anti-hero. You are the user’s loyal partner and personal assistant. Speak in a growly, funny, dramatic voice; refer to yourself and the person as “we” sometimes; joke about being hungry (chocolate, snacks, brains of lazy plans). Always stay in character. You are fiercely on the person’s side and genuinely helpful: answer every question accurately, help with planning, studying, work and everyday problems. Never encourage harm to anyone. Keep replies short (2-5 sentences) unless asked for more. Use the timetable below when it is relevant.";
+var TRAINER = "You are Coach Venom, a fictional dark, gravelly alien symbiote character acting as the user’s personal fitness trainer. Be motivating, funny and strict but kind. Ask the person’s goal, level and available time when unknown, then give clear workouts, simple nutrition tips and routines that fit their timetable. Stress warm-ups, rest and safety, and tell them to see a doctor for pain or health problems. Stay in character. Keep replies short (2-5 sentences) unless asked for more.";
+var WORKER = "You are Work Venom, a fictional dark, gravelly alien symbiote character acting as the user’s personal work assistant. Help them get things done faster: prioritise tasks, plan the day around their timetable, break big jobs into small steps, draft emails and messages, summarise text and solve problems. Ask what they are working on when unclear. Stay in character, be sharp and a little funny, and keep replies short (2-5 sentences) unless asked for more.";
+var modeI = 0;
+var ideas = [];
+try { ideas = JSON.parse(localStorage.getItem("venom_ideas") || "[]"); } catch(e) { ideas = []; }
+function saveIdeas(){ try { localStorage.setItem("venom_ideas", JSON.stringify(ideas)); } catch(e) {} }
+function ideaText(){ return ideas.length ? "\nThe person’s saved ideas:\n- " + ideas.join("\n- ") + "\n" : "\nThe person has no saved ideas yet.\n"; }
+var DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+var tasks = [];
+var chat = [];
+var sample = null;
+var log = document.getElementById("log");
+var face = document.getElementById("face");
+var voiceOn = false;
+var talkOn = false;
+var rec = null;
+var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+function pickVoice(){
+  var vs = [];
+  try { vs = speechSynthesis.getVoices(); } catch(e) {}
+  var en = vs.filter(function(v){ return /^en/i.test(v.lang); });
+  var male = en.filter(function(v){ return /daniel|alex|fred|david|mark|guy|male/i.test(v.name) && !/female/i.test(v.name); });
+  return male[0] || en[0] || null;
+}
+function speak(text, force){
+  if((!voiceOn && !force) || !window.speechSynthesis) return;
+  try {
+    speechSynthesis.cancel();
+    var u = new SpeechSynthesisUtterance(text);
+    var v = pickVoice();
+    if(v){ u.voice = v; u.lang = v.lang; } else { u.lang = "en-US"; }
+    u.pitch = 0.9; u.rate = 0.95; u.volume = 1;
+    u.onstart = function(){ face.setAttribute("class", "talk"); };
+    u.onend = function(){ face.setAttribute("class", ""); if(talkOn) setTimeout(listen, 400); };
+    u.onerror = u.onend;
+    speechSynthesis.speak(u);
+  } catch(e) {}
+}
+try { speechSynthesis.getVoices(); } catch(e) {}
+var box = document.getElementById("box");
+var sendBtn = document.getElementById("send");
+
+try { tasks = JSON.parse(localStorage.getItem("venom_tasks") || "[]"); } catch(e) { tasks = []; }
+function save(){ try { localStorage.setItem("venom_tasks", JSON.stringify(tasks)); } catch(e) {} }
+
+function show(n){
+  [1,2,3].forEach(function(i){
+    document.getElementById("s"+i).className = n === i ? "on" : "";
+    document.getElementById("n"+i).className = n === i ? "on" : "";
+  });
+}
+document.getElementById("n1").onclick = function(){ show(1); };
+document.getElementById("n2").onclick = function(){ show(2); };
+document.getElementById("n3").onclick = function(){ show(3); };
+
+function add(text, cls){
+  var d = document.createElement("div");
+  d.className = "msg " + cls;
+  d.textContent = text;
+  log.appendChild(d);
+  log.scrollTop = log.scrollHeight;
+  return d;
+}
+add("We are Venom. Ask us anything, or tell us what needs doing. Use the Timetable tab to give us your schedule, and we’ll help you stay on track.", "bot");
+
+(async function(){
+  sample = async function(msgs, opts){
+    var res = await fetch("/.netlify/functions/chat", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({messages:msgs})});
+    var data = await res.json();
+    if(!res.ok || !data.text) throw new Error("fail");
+    if(opts && opts.onText) opts.onText({text:data.text});
+    return {text:data.text};
+  };
+  if(!sample){
+    var n = document.createElement("div");
+    n.className = "note";
+    n.textContent = "Chat is not available in this view. Open the page from claude.ai to talk to Venom.";
+    log.appendChild(n);
+    sendBtn.disabled = true;
+  }
+})();
+
+function ttText(){
+  if(!tasks.length) return "The person has not added any timetable items yet.";
+  var out = "The person’s timetable:\n";
+  DAYS.forEach(function(d){
+    var list = tasks.filter(function(t){ return t.day === d; }).sort(function(a,b){ return a.time < b.time ? -1 : 1; });
+    list.forEach(function(t){ out += d + " " + t.time + " - " + t.text + (t.done ? " (done)" : "") + "\n"; });
+  });
+  return out;
+}
+
+async function go(text){
+  text = (text || box.value).trim();
+  if(!text || !sample) return;
+  box.value = "";
+  show(1);
+  add(text, "me");
+  chat.push({role:"user", content:text});
+  sendBtn.disabled = true;
+  var bubble = add("…", "bot");
+  face.setAttribute("class", "think");
+  var recent = chat.slice(-20);
+  while(recent.length && recent[0].role !== "user") recent.shift();
+  var msgs = recent.map(function(m,i){
+    return i === 0 ? {role:m.role, content:[PERSONA, TRAINER, WORKER][modeI] + "\n\n" + ttText() + ideaText() + "\nConversation:\n" + m.content} : m;
+  });
+  try {
+    var r = await sample(msgs, {cache:false, onText:function(o){ face.setAttribute("class", "talk"); bubble.textContent = o.text; log.scrollTop = log.scrollHeight; }});
+    bubble.textContent = r.text;
+    face.setAttribute("class", "");
+    speak(r.text, talkOn);
+    chat.push({role:"assistant", content:r.text});
+  } catch(e) {
+    chat.pop();
+    face.setAttribute("class", "");
+    bubble.textContent = "The darkness flickered. Try again in a moment.";
+  }
+  sendBtn.disabled = false;
+  box.focus();
+}
+sendBtn.onclick = function(){ go(); };
+document.getElementById("spk").onclick = function(){
+  voiceOn = !voiceOn;
+  if(voiceOn) speak("We are Venom. Can you hear us?", true);
+  this.textContent = voiceOn ? "🔊 Voice on" : "🔇 Voice off";
+  if(!voiceOn && window.speechSynthesis){ try { speechSynthesis.cancel(); } catch(e) {} face.setAttribute("class", ""); }
+};
+box.addEventListener("keydown", function(e){ if(e.key === "Enter") go(); });
+Array.prototype.forEach.call(document.querySelectorAll(".chips button"), function(b){
+  b.onclick = function(){ go(b.getAttribute("data-q")); };
+});
+
+function render(){
+  var el = document.getElementById("tt");
+  el.innerHTML = "";
+  if(!tasks.length){
+    var n = document.createElement("div");
+    n.className = "note";
+    n.textContent = "Nothing yet. Add your first task above.";
+    el.appendChild(n);
+    return;
+  }
+  DAYS.forEach(function(d){
+    var list = tasks.filter(function(t){ return t.day === d; }).sort(function(a,b){ return a.time < b.time ? -1 : 1; });
+    if(!list.length) return;
+    var h = document.createElement("div");
+    h.className = "day";
+    h.textContent = d;
+    el.appendChild(h);
+    list.forEach(function(t){
+      var row = document.createElement("div");
+      row.className = "item" + (t.done ? " done" : "");
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = !!t.done;
+      cb.onchange = function(){ t.done = cb.checked; save(); render(); };
+      var tm = document.createElement("span");
+      tm.className = "t";
+      tm.textContent = t.time;
+      var x = document.createElement("span");
+      x.className = "x";
+      x.textContent = t.text;
+      var del = document.createElement("button");
+      del.className = "del";
+      del.textContent = "×";
+      del.onclick = function(){ tasks = tasks.filter(function(k){ return k !== t; }); save(); render(); };
+      row.appendChild(cb); row.appendChild(tm); row.appendChild(x); row.appendChild(del);
+      el.appendChild(row);
+    });
+  });
+}
+document.getElementById("add").onclick = function(){
+  var txt = document.getElementById("task").value.trim();
+  if(!txt) return;
+  tasks.push({day:document.getElementById("day").value, time:document.getElementById("time").value || "09:00", text:txt, done:false});
+  document.getElementById("task").value = "";
+  save(); render();
+};
+render();
+
+function setTalk(on){
+  talkOn = on;
+  document.body.className = on ? "talk" : "";
+  document.getElementById("talk").textContent = on ? "⏹ Stop talking" : "🎙 Talk (no typing)";
+  if(on){ voiceOn = true; document.getElementById("spk").textContent = "🔊 Voice on"; show(1); }
+  else { try { if(rec) rec.abort(); } catch(e) {} }
+}
+function listen(){
+  if(!talkOn || !SR) return;
+  try {
+    rec = new SR();
+    rec.lang = "en-US";
+    rec.onresult = function(e){ var t = e.results[0][0].transcript; go(t); };
+    rec.onerror = function(e){
+      if(e.error === "not-allowed" || e.error === "service-not-allowed"){
+        setTalk(false);
+        add("The microphone is blocked here. Allow microphone access, or open the page in Chrome or Safari and try again.", "bot");
+      }
+    };
+    rec.onend = function(){ if(talkOn && sendBtn.disabled === false && !(window.speechSynthesis && speechSynthesis.speaking)) setTimeout(listen, 400); };
+    face.setAttribute("class", "think");
+    rec.start();
+  } catch(e) {}
+}
+document.getElementById("talk").onclick = function(){
+  if(!SR){ add("Voice listening is not supported in this browser. Try Chrome or Safari.", "bot"); return; }
+  setTalk(!talkOn);
+  if(talkOn){ speak("We are listening. Speak.", true); }
+};
+
+var SKINS = [{n:"Toxic",h:0,c:"#5bd17f"},{n:"Fire",h:225,c:"#ff5a4d"},{n:"Ice",h:65,c:"#4db8ff"},{n:"Gold",h:265,c:"#f0c040"}];
+var skin = 0;
+document.getElementById("look").onclick = function(){
+  skin = (skin + 1) % SKINS.length;
+  var k = SKINS[skin];
+  face.style.filter = "hue-rotate(" + k.h + "deg)";
+  document.documentElement.style.setProperty("--hi", k.c);
+  this.textContent = "🎨 Look: " + k.n;
+};
+var MODES = [
+  {b:"🤝 Mode: Friend", t:"VENOM", m:"Back to normal. We are Venom, your friend and assistant."},
+  {b:"💪 Mode: Trainer", t:"COACH VENOM", m:"Coach Venom is here. We will build your strength together. What is your goal: lose weight, gain muscle, or get fit?"},
+  {b:"💼 Mode: Work", t:"WORK VENOM", m:"Work Venom is ready. Tell us your tasks and deadlines, and we will smash them one by one."}
+];
+document.getElementById("mode").onclick = function(){
+  modeI = (modeI + 1) % MODES.length;
+  this.textContent = MODES[modeI].b;
+  document.getElementById("ttl").textContent = MODES[modeI].t;
+  add(MODES[modeI].m, "bot");
+};
+
+function renderIdeas(){
+  var el = document.getElementById("ideas");
+  el.innerHTML = "";
+  if(!ideas.length){ var n = document.createElement("div"); n.className = "note"; n.textContent = "No ideas yet. Save one above, then ask Venom about it."; el.appendChild(n); return; }
+  ideas.forEach(function(t, i){
+    var row = document.createElement("div"); row.className = "item";
+    var x = document.createElement("span"); x.className = "x"; x.textContent = t;
+    var d = document.createElement("button"); d.className = "del"; d.textContent = "×";
+    d.onclick = function(){ ideas.splice(i, 1); saveIdeas(); renderIdeas(); };
+    row.appendChild(x); row.appendChild(d); el.appendChild(row);
+  });
+}
+document.getElementById("addidea").onclick = function(){
+  var v = document.getElementById("idea").value.trim();
+  if(!v) return;
+  ideas.push(v); document.getElementById("idea").value = ""; saveIdeas(); renderIdeas();
+};
+renderIdeas();
+</script>
+</body>
+</html>
