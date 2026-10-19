@@ -15,6 +15,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({ model: "llama-3.3-70b-versatile", max_tokens: 600, messages })
     });
     const data = await r.json();
+    console.log(r.status, JSON.stringify(data));
     const text = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : "";
     if (!r.ok || !text) return { statusCode: 502, body: JSON.stringify({ error: "Upstream error" }) };
     return { statusCode: 200, headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) };
