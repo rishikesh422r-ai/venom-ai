@@ -1,78 +1,24 @@
 exports.handler = async (event) => {
-  if (event.httpMethod !== "POST") {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: "Method not allowed" })
-    };
-  }
-
+  if (event.httpMethod !== "POST") return { statusCode: 405, body: "Method not allowed" };
   try {
     const body = JSON.parse(event.body || "{}");
-    const messages = Array.isArray(body.messages)
-      ? body.messages.slice(-20)
-      : [];
-
-    const valid = messages.length > 0 &&
-      messages.every((m) =>
-        ["user", "assistant"].includes(m.role) &&
-        typeof m.content === "string" &&
-        m.content.length < 8000
-      );
-
-    if (!valid) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "Invalid messages" })
-      };
-    }
-
-    const apiKey = process.env.GROQ_API_KEY;
-
-    if (!apiKey) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ error: "GROQ_API_KEY is missing" })
-      };
-    }
-
-    const response = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          messages,
-          max_tokens: 600
-        })
-      }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("Groq error:", response.status, data);
-      return {
-        statusCode: 502,
-        body: JSON.stringify({ error: "AI service request failed" })
-      };
-    }
-
-    return {
-      statusCode: 200,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        reply: data.choices?.[0]?.message?.content || ""
-      })
-    };
-  } catch (error) {
-    console.error("Chat function error:", error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: "Internal server error" })
-    };
+    const messages = Array.isArray(body.messages) ? body.messages.slice(-20) : [];
+    const ok = messages.length > 0 && messages.every(m =>
+      (m.role === "user" || m.role === "assistant") && typeof m.content === "string" && m.content.length < 8000);
+    if (!ok) return { statusCode: 400, body: JSON.stringify({ error: "Bad request" }) };
+    const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "authorization": "Bearer " + process.env.GROQ_API_KEY
+      },
+      body: JSON.stringify({ model: "llama-3.3-70b-versatile", max_tokens: 600, messages })
+    });
+    const data = await r.json();
+    const text = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : "";
+    if (!r.ok || !text) return { statusCode: 502, body: JSON.stringify({ error: "Upstream error" }) };
+    return { statusCode: 200, headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) };
+  } catch (e) {
+    return { statusCode: 500, body: JSON.stringify({ error: "Server error" }) };
   }
 };
